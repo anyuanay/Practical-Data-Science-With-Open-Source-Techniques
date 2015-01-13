@@ -1,6 +1,6 @@
 # Tutorial for "Titanic-prediction"
 
-Tutorial created for the kaggle competition: <a http="https://www.kaggle.com/c/titanic-gettingStarted">Titanic: Machine Learning from Disaster</a>
+Tutorial created for the kaggle competition: [Titanic: Machine Learning from Disaster](https://www.kaggle.com/c/titanic-gettingStarted)
 
 ## Data Processing
 
