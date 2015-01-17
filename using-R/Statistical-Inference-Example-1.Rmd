@@ -1,0 +1,73 @@
+---
+title: "Statistical Inference Project (Part 1)"
+output: html_document
+date: "Oct. 2014"
+---
+
+## Synopsis
+
+This document describes the course project for Statistical Inference. The project simulates the exponential distribution using rexp($n$, $\lambda$) where $\lambda$ is the rate parameter. In this simulation, I will investigate the distribution of averages of 40 exponential($\lambda = 0.2$)s. I will illustrate via simulation and associated explanatory text the properties of the distribution of the mean of 40 exponential($\lambda = 0.2$)s.  
+
+## Data Processing
+
+In R, the exponential distribution is simulated using rexp($n$, $\lambda$). The mean of exponential distribution is $\frac{1}{\lambda}$ and the standard deviation is also also $\frac{1}{\lambda}$. In this project, I will set $\lambda = 0.2$ for all of the simulations. 
+
+Simulate 40 exponentials(0.2)s with $\lambda = 0.2$ for 1000 times and calculate the means of the 1000 simulations:
+```{r echo = TRUE}
+nosim = 1000
+lambda = 0.2
+mat <- matrix(rexp(nosim * 40, lambda), nosim)
+allmeans <- apply(mat, 1, mean)
+hist(allmeans, xlab = "Means of Exponential Distribution", main = "Histogram of Means for Exponential Distribution")
+```
+
+## Results
+
+### Show where the distribution is centered at and compare it to the theoretical center of the distribution.
+The theoretical center/mean of the distribution is:
+$\mu = \frac{1}{\lambda} = \frac{1}{0.2} = 5$
+
+The center/mean of the 1000 simulations of 40 exponential distribtuion is:
+```{r echo = TRUE}
+mean(allmeans)
+```
+The following box plot illustrates the center of the mean distribution and quantiles:
+```{r echo = TRUE}
+boxplot(allmeans)
+```
+
+It can be seen that the center of the means is very close to the theoretical center of the distribution.
+
+### Show how variable it is and compare it to the theoretical variance of the distribution.
+The Central Limit Theorem (CLT) states that the smaple means $\overline{X}$ approximately follows the normal distribution $N(\mu,\sigma^2/n)$, where $\mu = 1/\lambda = 5$,  $\sigma = 1/\lambda = 5$ and $n = 40$. More specifically, the theretical variance of the distribution is $\sigma^2/n =0.625$.
+
+The variance of all the simulated means is:
+```{r echo = TRUE}
+var(allmeans)
+```
+
+It can be seen that the sample variance is very close to the theoretical variance $0.625$.
+
+### Show that the distribution is approximately normal.
+
+Normalize the means and overlap the histogram of the normalized means with a standard normal distribution.
+```{r echo =  TRUE}
+pmean <- 1 / lambda
+psigma <- 1 / lambda
+cfunc <- function(x, n) sqrt(n) * (x - pmean) / psigma
+dat <- data.frame(x = c(sapply(allmeans, cfunc, 40)))
+library(ggplot2)
+ggplot(dat, aes(x=x)) + geom_histogram(aes(y=..density..), binwidth=.5, colour="black", fill="white") + geom_density(alpha=.2, fill="#FF6666") + stat_function(fun = dnorm, size = 2)
+```
+
+The following Shapiro-Wilk test indicates the normality of the mean distribution:
+```{r echo = TRUE}
+shapiro.test(allmeans)
+```
+
+### Evaluate the coverage of the confidence interval for 1/lambda.
+$\mu = \frac{1}{\lambda}$ is $\frac{1}{0.2} = 5$.
+The 95% confidence interval for $\mu$ is computed as follows:
+```{r echo = TRUE}
+mean(allmeans) + c(-1, 1) * qnorm(.975) * sd(allmeans) / sqrt(length(allmeans))
+```

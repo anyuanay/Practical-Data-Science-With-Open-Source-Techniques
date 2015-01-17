@@ -1,0 +1,240 @@
+---
+title: "Social Circle Exploratory Analysis"
+author: "Yuan An"
+date: '`r format(Sys.time(), ''%m/%d/%Y'')`'
+output: pdf_document
+---
+
+## Synopsis
+This document describes several exploratory steps on analyzing the social network data for circle discovery. The problem is posted as a Kaggle competition for [learning social cirle in networks](https://www.kaggle.com/c/learning-social-circles/leaderboard). The original "features.txt" data file has been transformed into a CSV file called "features.csv" using a Java program - MakeCSVFromFeatures.java. The Github repository containing all the source code is located [here](https://github.com/anyuanay0511/SocialCircleAnalysis).
+
+## Result Summary
+
+1. I began with the benchmark solutions provided by the competition and in the discussion forum. Both solutions are implemented in Python and I used them to generate the submissions. The first benchmark solution is to use the connected components in the graph of an ego's friend connections as circles. The submission result is 5553 point (the lower the better.)
+2. The second benchmark solution is to use k-cliques (k = 5) in the graph of an ego's friend connections as circles. The submission result is 4822 point (an improvement.)
+3. I then turned to clusering methods on the friends' profiles of each ego, ignoring connections. After applying the hierarchical clustering function in R and testing several parameters including the number of clustering, I achieved the best submission result 5559 point (worse than connected component and k-cliques.)
+4. By exploring the data sets, I found that many features have a lot of missing values. I selected a random circle to check what the common features are in the circle. The exploratory results show that the features with many common values include "locale", "education.type", "gender", "hometown.id", and "hometown.name". I subseted the entire set using only 14 features and re-clustered on the profiles. The best submission result is 5553 with the number of clustering being 3. It achieved the same result as the connnected component method.
+5. The above analysis indicates that the connections among friends provide better characteristics for cricle discovery. As the paper [1] discussed, using both link information and profile features would be the best solution. However, the problem becomes a difficult combinatorial optimization problem. 
+6. Another possible improvement direction is to organize friends into circles with overlapping members. In terms of clustering, we can use different subsets of features for clustering the friends.
+
+[1] J. McAuley, J. Leskovec. Learning to discover social circles in ego networks. Neural Information Processing Systems. 2012.
+
+## The following R code and intermediate results illustrate the process of the exploratory analysis on the data sets. 
+
+### Loading and Exploring the CSV Data
+
+Read in all the egos along with their profile features
+```{r echo = TRUE}
+egos <- read.csv("features.csv")
+str(egos)
+```
+
+Read in the sample_submissio.csv and extract the list of egos for prediction
+```{r echo = TRUE}
+sample_sub <- read.csv("sample_submission.csv")
+sample_egos <- sample_sub[[1]]
+str(sample_egos)
+```
+
+### A Naive Hierarchical Clustering on Ego's Friends
+In this clustering step, we only use the profile features for clustering friends into cricles. 
+
+#### Let us first explore clustering on a single ego's friends
+
+first remove some columns such as birthday, names...
+```{r echo = TRUE}
+egos <- subset(egos, select = -c(birthday, first_name))
+```
+
+
+Extract an ego's friends' profile features
+```{r echo = TRUE}
+library(dplyr)
+ego <- sample_egos[2]
+ego_friends_file <- paste("egonets/", ego, ".egonet", sep ="")
+lines <- readLines(ego_friends_file)
+ego_friends <- unlist(lapply(lines, function(x) {strsplit(x, ":")[[1]][[1]]}))
+ego_friends <- as.integer(ego_friends)
+str(ego_friends)
+ego_friends_features <- egos[egos$id %in% ego_friends, ]
+```
+
+I want to view several rows of the data in a nice format.
+```{r echo = TRUE}
+tbl <- tbl_df(ego_friends_features)
+head(tbl)
+```
+
+There are lots of missing values. Summarize the data to visualize where the missing values are.
+```{r echo = TRUE}
+summary(tbl)
+```
+
+
+
+Clustering on the ego's friends and plot the Dendrogram
+```{r echo = TRUE}
+dist_friends <- dist(scale(ego_friends_features))
+hclustering <- hclust(dist_friends)
+plot(hclustering, xlab = "", ylab = "")
+```
+
+Cut the hierarchical clustering into groups. Experiment k = 5 for cutting:
+```{r echo = TRUE}
+circles <- cutree(hclustering, k = 5)
+```
+
+Add the circle indicators to the friends' features.
+```{r echo = TRUE}
+ego_friends_features_circles <- cbind(ego_friends_features, circles)
+
+```
+
+Write the submission results in the required format.
+```{r echo = TRUE}
+#Create a empty data frame with the required column names
+df <- data.frame(UserId = numeric(), Predicted = character())
+
+#Get the list of circles
+circles_list <- lapply(c(1:5), function(e) {ego_friends_features_circles[ego_friends_features_circles$circles == e, ]$id})
+
+#Separate the circles by ";"
+circles_str <- lapply(circles_list, function(x) paste(x, collapse = " "))
+submission_result <- paste(circles_str, collapse = ";")
+
+#Append a result to the data frame
+df <- rbind(df, data.frame(UserId = ego, Predicted = submission_result))
+#write the results to a file
+write.csv(df, file = "submission/hcluster-expl.csv", quote = FALSE, row.names = FALSE)
+```
+
+Find the circles for the sample egos in the sample_submission.csv file:
+```{r echo = TRUE}
+num_circle <- 3
+df <- data.frame(UserId = numeric(), Predicted = character())
+for(j in 1:length(sample_egos)){
+    ego <- sample_egos[j]
+    ego_friends_file <- paste("egonets/", ego, ".egonet", sep ="")
+    lines <- readLines(ego_friends_file)
+    ego_friends <- unlist(lapply(lines, function(x) {strsplit(x, ":")[[1]][[1]]}))
+    ego_friends <- as.integer(ego_friends)
+    ego_friends_features <- egos[egos$id %in% ego_friends, ]
+    dist_friends <- dist(scale(ego_friends_features))
+    hclustering <- hclust(dist_friends)
+    circles <- cutree(hclustering, k = num_circle)
+    ego_friends_features_circles <- cbind(ego_friends_features, circles)
+    
+    circles_list <- lapply(c(1:num_circle), function(e) {ego_friends_features_circles[ego_friends_features_circles$circles == e, ]$id})
+
+    #Separate the circles by ";"
+    circles_str <- lapply(circles_list, function(x) paste(x, collapse = " "))
+    submission_result <- paste(circles_str, collapse = ";")
+
+    #Append a result to the data frame
+    df <- rbind(df, data.frame(UserId = ego, Predicted = submission_result))
+}
+
+ #write the results to a file
+write.csv(df, file = "submission/hcluster-submission-subcols.csv", quote = FALSE, row.names = FALSE)
+```
+
+Find the circles for the all the egos in testSet:
+```{r echo = TRUE}
+testlines <- readLines("testSet_users_friends.csv")
+testset <-unlist(lapply(testlines, function(x) strsplit(x, ":")[[1]][[1]]))
+testset <-as.integer(testset)
+
+num_circle <- 3
+df <- data.frame(UserId = numeric(), Predicted = character())
+for(j in 1:length(testset)){
+    ego <- testset[j]
+    ego_friends_file <- paste("egonets/", ego, ".egonet", sep ="")
+    lines <- readLines(ego_friends_file)
+    ego_friends <- unlist(lapply(lines, function(x) {strsplit(x, ":")[[1]][[1]]}))
+    ego_friends <- as.integer(ego_friends)
+    ego_friends_features <- egos[egos$id %in% ego_friends, ]
+    dist_friends <- dist(scale(ego_friends_features))
+    hclustering <- hclust(dist_friends)
+    circles <- cutree(hclustering, k = num_circle)
+    ego_friends_features_circles <- cbind(ego_friends_features, circles)
+    
+    circles_list <- lapply(c(1:num_circle), function(e) {ego_friends_features_circles[ego_friends_features_circles$circles == e, ]$id})
+
+    #Separate the circles by ";"
+    circles_str <- lapply(circles_list, function(x) paste(x, collapse = " "))
+    submission_result <- paste(circles_str, collapse = ";")
+
+    #Append a result to the data frame
+    df <- rbind(df, data.frame(UserId = ego, Predicted = submission_result))
+}
+
+ #write the results to a file
+write.csv(df, file = "submission/hcluster-test-submission-subcols.csv", quote = FALSE, row.names = FALSE)
+```
+
+### What is a cirlce and what are the common features in a circle?
+
+Analyse a randomly chosen file containing some circles. Pick up a circle
+```{r echo = TRUE}
+circles <- readLines("Training/12800.circles")
+acircle <- strsplit(circles[1], ":")[[1]][2]
+library(stringr)
+acircle <- str_trim(acircle)
+acircle_ids <- as.integer(strsplit(acircle, " ")[[1]])
+```
+
+Get all the profiles of the friends in the circle.
+```{r echo = TRUE}
+circle_friends <- egos[egos$id %in% acircle_ids, ]
+#summary(circle_friends)
+```
+
+Remove the features that have two many missing values.
+```{r echo = TRUE}
+circle_friends_nonafeatures <- circle_friends[, colSums(is.na(circle_friends)) < 30]
+#summary(circle_friends_nonafeatures)
+```
+
+For the remaining features, what features have a lot of common values:
+```{r echo = TRUE}
+for(i in 1:ncol(circle_friends_nonafeatures)){
+    print(colnames(circle_friends_nonafeatures[i]))
+    print(table(circle_friends_nonafeatures[[i]]))
+    writeLines("\n\n")
+}
+```
+
+Select those seeminly useful features and re-clustering.
+```{r echo = TRUE}
+useful_features <- c("id", "education.school.id", "education.school.name", "education.type", "education.year.id", "education.year.name", "gender", "hometown.id", "hometown.name", "locale", "location.id", "location.name", "work.end_date", "work.employer.name", "work.start_date")
+egos <- egos[, useful_features]
+
+num_circle <- 5
+df <- data.frame(UserId = numeric(), Predicted = character())
+for(j in 1:length(sample_egos)){
+#for(j in 1:1){    
+    ego <- sample_egos[j]
+    ego_friends_file <- paste("egonets/", ego, ".egonet", sep ="")
+    lines <- readLines(ego_friends_file)
+    ego_friends <- unlist(lapply(lines, function(x) {strsplit(x, ":")[[1]][[1]]}))
+    ego_friends <- as.integer(ego_friends)
+    ego_friends_features <- egos[egos$id %in% ego_friends, ]
+    #ego_friends_features <- subset(ego_friends_features, select = -c(id))
+    dist_friends <- dist(scale(ego_friends_features))
+    hclustering <- hclust(dist_friends)
+    circles <- cutree(hclustering, k = num_circle)
+    ego_friends_features_circles <- cbind(ego_friends_features, circles)
+    
+    circles_list <- lapply(c(1:num_circle), function(e) {ego_friends_features_circles[ego_friends_features_circles$circles == e, ]$id})
+
+    #Separate the circles by ";"
+    circles_str <- lapply(circles_list, function(x) paste(x, collapse = " "))
+    submission_result <- paste(circles_str, collapse = ";")
+
+    #Append a result to the data frame
+    df <- rbind(df, data.frame(UserId = ego, Predicted = submission_result))
+}
+
+ #write the results to a file
+write.csv(df, file = "submission/hcluster-submission-usefulfeatures-6.csv", quote = FALSE, row.names = FALSE)
+```

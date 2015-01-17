@@ -1,0 +1,117 @@
+---
+title: "Statistical Inference Project (Part 2)"
+output: html_document
+date: "Oct. 2014"
+---
+
+## Synopsis
+
+This is the second part of the course project for Statistical Inference. In this part, I am going to analyze the ToothGrowth data in the R datasets package. First, I will perform some basic exploratory analyses and provide a basic summary of the data. Next, I will use confidence intervals and hypothesis tests to compare tooth growth by supp and dose. Finally, this document presents the conclusions and the assumptions needed for the conclusions.
+  
+
+## Data Processing
+
+###Load the ToothGrowth data and perform some basic exploratory data analyses. Provide a basic summary of the data.
+
+Load the ToothGrowth data from the R package and assign the data to the variable 'df':
+```{r echo = TRUE}
+data(ToothGrowth)
+df <- ToothGrowth
+dim(df)
+head(df)
+```
+
+Basic summary of the data set:
+```{r echo = TRUE}
+summary(df)
+str(df)
+```
+
+Plot the 'len' variable against the 'dose' variable:
+```{r echo = TRUE}
+plot(df$dose, df$len)
+```
+
+Plot the 'len' variable against the 'supp' variable:
+```{r echo = TRUE}
+plot(df$supp, df$len)
+```
+
+## Results
+
+###Use confidence intervals and hypothesis tests to compare tooth growth by supp and dose. 
+By the plots of df\$len against df\$dose and df\$len against df\$supp, it seems that the growths of teeth are significantly different using different doses and supps. 
+
+The basic summary of the data shows that there are 3 levels of doses: 0.5, 1.0, and 2.0. For supps, there are 2 levels of supps: OJ and VC.
+
+####The following steps compare the tooth growth between different doses:
+
+1. Retrieve the growth data for different doses:
+```{r echo = TRUE}
+len05 <- df$len[df$dose == 0.5]
+len10 <- df$len[df$dose == 1]
+len20 <- df$len[df$dose == 2]
+apply(rbind(len05, len10, len20), 1, length)
+```
+
+2. take the differences between the growth data using dose 0.5 and 1.0, and between the growth data using dose 1.0 and 2.0:
+```{r echo = TRUE}
+len10diff05 <- len10 - len05
+len20diff10 <- len20 - len10
+```
+
+3. Do a t test
+```{r echo = TRUE}
+t.test(len10diff05)
+t.test(len20diff10)
+```
+
+4. Compute the 95% confidence intervals of the two groups of differences:
+```{r echo = TRUE}
+mean(len10diff05) + c(-1, 1) * qt(.975, 19) * sd(len10diff05) / sqrt(20)
+mean(len20diff10) + c(-1, 1) * qt(.975, 19) * sd(len20diff10) / sqrt(20)
+```
+
+Both intervals are greater than 0. With high confidence, we can say that the tooth growth using dose 2.0 is greater than that using dose 1.0, and the tooth growth using dose 1.0 is greater than that of using dose 0.5.
+
+####The following steps compare the tooth growth using different supps.
+
+1. Retrieve the growth data for different supps:
+```{r echo = TRUE}
+lenVC <- df$len[df$supp == 'VC']
+lenOJ <- df$len[df$supp == 'OJ']
+apply(rbind(lenVC, lenOJ), 1, length)
+```
+
+2. take the differences between the growth data using supp OJ and that using supp VC:
+```{r echo = TRUE}
+lenOJdiffVC <- lenOJ - lenVC
+```
+
+3. Do a t test
+```{r echo = TRUE}
+t.test(lenOJdiffVC)
+```
+
+4. Compute the 95% confidence interval of the difference:
+```{r echo = TRUE}
+mean(lenOJdiffVC) + c(-1, 1) * qt(.975, 29) * sd(lenOJdiffVC) / sqrt(30)
+```
+
+The interval is greater than 0. With high confidence, we can say that the tooth growth using supp OJ is greater than that using supp VC.
+
+###Conclusions and the assumptions needed for the conclusions.
+This data analysis and hypothesis testing is based on the following assumption:
+
+\textit{The variable "df\$len" measures the growth of teeth, which depends on the variable "df\$dose" and the variable "df\$supp"}.
+
+By looking at the exploratory analysis of the ToothGrowth data, I made the following hypotheses:
+
+1. Different doses cause different tooth growth measures.
+2. Different supps cause different tooth growth measures. 
+
+####We can draw the following conclusions from the above confidence interval analyses:
+
+1. With high confidence, we can say that the tooth growth using dose 2.0 is greater than that using dose 1.0, and the tooth growth using dose 1.0 is greater than that of using dose 0.5.
+
+2. With high confidence, we can say that the tooth growth using supp OJ is greater than that using supp VC.

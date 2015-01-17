@@ -1,0 +1,254 @@
+---
+title: "Course Project - Practical Machine Learning"
+output: html_document
+date: "Nov. 2014"
+---
+
+## Synopsis
+
+The goal of the project is to predict the quality of exercise activities. This project uses the data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+The training data for this project are available here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+This report describes the model, cross validation, and the expected out of sample error. Finally, the prediction model is used to predict 20 different test cases. 
+
+
+## Data Processing
+
+Load the training and testing data:
+```{r echo = TRUE, cache = TRUE}
+training = read.csv("pml-training.csv")
+testing = read.csv("pml-testing.csv")
+dim(training)
+dim(testing)
+```
+
+Check how many columns having more than 80% missing values (NAs) in the testing data set:
+```{r echo = TRUE}
+sum(sapply(testing, function(e) {sum(is.na(e)) / nrow(testing) > 0.8}))
+```
+
+Remove the columns with more than 80% missing values from both the training and testing data sets:
+```{r echo = TRUE}
+missingCols  = sapply(testing, function(e) {sum(is.na(e)) / nrow(testing) > 0.8})
+trainingNNa =  subset(training, select = !missingCols)
+testingNNa = subset(testing, select = !missingCols)
+dim(trainingNNa)
+dim(testingNNa)
+```
+
+What is the objective variable and its type?
+```{r echo = TRUE}
+str(trainingNNa$class)
+summary(trainingNNa$class)
+```
+
+There are 5 different discrete values. By the nature of the objective variable, we will train a classification model for the prediction problem.
+
+```{r echo = TRUE}
+str(trainingNNa)
+```
+
+Remove the first 7 variables that don't provide predicting values.
+```{r echo = TRUE}
+trainingNNa = trainingNNa[, -c(1:7)]
+testingNNa = testingNNa[, -c(1:7)]
+dim(trainingNNa)
+dim(testingNNa)
+```
+
+## Visualizations
+
+Randomly pick up 5 variables and create a scatter-plot matrix:
+```{r echo = TRUE}
+library(caret)
+featurePlot(x = trainingNNa[, c(1, 10, 20, 35, 45)], y = trainingNNa$class, plot = "pairs", auto.key = list(columns = 5))
+```
+
+## Pre-Processing
+Separate the predictors and class labels.
+```{r echo = TRUE}
+trainingVars = trainingNNa[, c(1:52)]
+objLabels = trainingNNa[, 53]
+testingVars = testingNNa[, c(1:52)]
+testingProdIds = testingNNa[, 53]
+```
+
+Center and scale both training and testing data
+```{r echo = TRUE, cached = TRUE}
+library(caret)
+preproc = preProcess(trainingVars)
+trainingVarsProc = predict(preproc, trainingVars)
+testingVarsProc = predict(preproc, testingVars)
+```
+
+Are there any near-zero-variance variables?
+```{r echo = TRUE}
+nearZeroVar(trainingVarsProc)
+```
+
+Are there highly correlated variables?
+```{r echo = TRUE}
+descrCor <- cor(trainingVarsProc)
+highCorr <- sum(abs(descrCor[upper.tri(descrCor)]) > 0.75)
+highCorr
+```
+
+Remove highly correlated variables
+```{r echo = TRUE}
+highlyCorDescr <- findCorrelation(descrCor, cutoff = 0.75)
+trainingVarsProcNCor = trainingVarsProc[, -highlyCorDescr]
+testingVarsProcNCor = testingVarsProc[, -highlyCorDescr]
+dim(trainingVarsProcNCor)
+dim(testingVarsProcNCor)
+```
+
+## Training and Tuning through Cross Validation
+
+#### Data-Spliting
+The pre-processed training data is split into two subsets: 75% for training prediction models and 25% as validation set for evaluating error rates and selecting models.
+
+```{r echo = TRUE}
+inTrain = createDataPartition(objLabels, p = 0.75, list = FALSE)
+forTrainingVars = trainingVarsProcNCor[inTrain, ]
+forTestingVars = trainingVarsProcNCor[-inTrain, ]
+forTrainingLabels = objLabels[inTrain]
+forTestingLabels = objLabels[-inTrain]
+```
+
+#### Estimating a Baseline Error Rate
+
+For this classification problem, I first train a decision tree and evaluate its error rate on the validation set. I will use the error rate of the decision tree as a baseline error rate. In the later part of the document, I will train other models and use cross validation to select the best one. 
+
+Train a decision tree using the caret package.
+```{r echo = TRUE, cache = TRUE}
+set.seed(2345)
+modeldt = train(y = forTrainingLabels, x = forTrainingVars, method = "rpart")
+```
+
+Predict the labels for the validation set and estimate the error rate.
+```{r echo = TRUE}
+preddt = predict(modeldt, forTestingVars)
+confusionMatrix(forTestingLabels, preddt)
+```
+
+The accuracy of the decision tree is 0.537. To improve the accuracy, I will train several different models in the following. 
+
+#### Training Different Models and Estimating Error Rates
+
+##### Will Naive Bayes Model Improve the Accuracy?
+
+Train a naive Bayes model and estimate its accuracy. To speed up the training process, I only use 10% of the training data.
+
+```{r echo = TRUE}
+set.seed(2345)
+library(klaR)
+library(MASS)
+inTrain = createDataPartition(forTrainingLabels, p = .1, list = FALSE)
+smallTrainingVars = forTrainingVars[inTrain, ]
+smallTrainingLabels = forTrainingLabels[inTrain]
+```
+
+```{r echo = TRUE, cache = TRUE, warning = FALSE}
+modelnb = train(y = smallTrainingLabels, x = smallTrainingVars, method = "nb", )
+```
+
+```{r echo = TRUE, cache = TRUE, warning = FALSE}
+prednb = predict(modelnb, forTestingVars)
+confusionMatrix(forTestingLabels, prednb)
+```
+
+The accuracy of the naive Bayes model is 0.66 which is better than that (0.537) of the decision tree although only 10% of the training data is used. 
+
+##### Building Random Forest Models
+
+Train a random forest model using the 10% of the training data as used in training the naive Bayes model.
+```{r echo = TRUE, cache = TRUE, warning = FALSE}
+modelrf = train(y = smallTrainingLabels, x = smallTrainingVars, method = "rf", )
+predrf = predict(modelrf, forTestingVars)
+confusionMatrix(forTestingLabels, predrf)
+```
+
+Using only the 10% of the training data, the accuracy of the random forest model is 0.929 which is much better than that (0.66) of the naive Bayes model. Let us train a random forest model using all the available training data.
+```{r echo = TRUE, cache = TRUE, warning = FALSE}
+modelrfall = train(y = forTrainingLabels, x = forTrainingVars, method = "rf", )
+predrfall = predict(modelrfall, forTestingVars)
+confusionMatrix(forTestingLabels, predrfall)
+```
+
+Great! The accuracy of the random forest model trained by using all the available training data is 0.99. 
+
+##### Will Feature Selection Help?
+I am curious about whether we can select a smaller set of features/predictors to further improve the training process, e.g., better accuracy or faster training time. 
+
+First,  create an integer vector for the specific subset sizes of the predictors that should be tested.
+```{r echo = TRUE}
+subsets <- c(1:5, 10, 15, 20, 25)
+```
+
+Use recursive feature elimination via caret to find the important features. We train a series random forest models and select features through repeated cross validations on different sizes of feature sets. 
+
+```{r echo = TRUE, cache = TRUE, warning = FALSE}
+set.seed(2345)
+
+library(Hmisc)
+
+ctrl <- rfeControl(functions = rfFuncs,
+                   method = "repeatedcv",
+                   repeats = 5,
+                   verbose = FALSE)
+
+rfProfile <- rfe(smallTrainingVars, smallTrainingLabels, 
+                 sizes = subsets,
+                 rfeControl = ctrl)
+
+rfProfile
+```
+
+##### OK. Let Us Train a Random Forest Model with only Five Variables
+
+Extract the data.
+```{r echo = TRUE}
+featureEliTrainingVars = forTrainingVars[, c("magnet_belt_z", "magnet_dumbbell_z", "yaw_belt", "roll_dumbbell", "pitch_forearm")]
+featureEliTestingVars = forTestingVars[, c("magnet_belt_z", "magnet_dumbbell_z", "yaw_belt", "roll_dumbbell", "pitch_forearm")]
+featureEliFinalTestingVars = testingVarsProcNCor[, c("magnet_belt_z", "magnet_dumbbell_z", "yaw_belt", "roll_dumbbell", "pitch_forearm")]
+dim(featureEliTrainingVars)
+dim(featureEliTestingVars)
+dim(featureEliFinalTestingVars)
+```
+
+Train a random forest model using only 5 variables.
+
+```{r echo = TRUE, cache = TRUE, warning = FALSE}
+modelrf5vars = train(y = forTrainingLabels, x = featureEliTrainingVars, method = "rf", )
+predrf5vars = predict(modelrf5vars, featureEliTestingVars)
+confusionMatrix(forTestingLabels, predrf5vars)
+```
+
+The accuracy of the model trained by only 5 variables is 0.95. 
+
+## Estimated Out of Sample Error Rate
+
+##### According to the results of training, tuning, and testing different models on the set of validation data, I estimate the out of sample error rate is 0.99 with 95% confidence interval [0.993, 0.997].
+
+## Testing Results
+
+Apply the random forest models trained by the full set of variables and the reduced set of variables to the test set with 20 observations. Check their prediction agreement.
+
+```{r echo = TRUE}
+resultsrf5vars = predict(modelrf5vars, featureEliFinalTestingVars)
+resultsrfall = predict(modelrfall, testingVarsProcNCor)
+confusionMatrix(resultsrf5vars, resultsrfall)
+```
+
+The two models agree about 90% of the test cases. 
+
+##### The final submission of the 20 cases predicted by the random forest model trained on the full set of the variables gets 100% accuracy. 
+
+

@@ -1,0 +1,82 @@
+---
+title: "Regression Model Project"
+output: pdf_document
+date: "Oct. 2014"
+---
+
+## Executive Summary
+
+This project looks at the mtcars data set of a collection of cars. The main purpose is to explore the relationship between a set of variables and miles per gallon (MPG). There are two interesting questions this project attempts to answer:
+
+1. Is an automatic or manual transmission better for MPG?
+
+The first regression of 'mpg' with 'am' shows that manual transmission would be better than automatic transmission for MPG. However, after a diagnostic analysis, the model needs to include 'wt' and 'hp'. The new model shows that the mean MPG of manual transmission is better than the mean MPG of automatic transmission by about 2mpg with relatively high p-value. The following 95% confidence interval analysis indicates that we cannot accept the hypothesis that manual transmission is better than automatic transmission for MPG. 
+
+2. Quantify the MPG difference between automatic and manual transmissions.
+
+The mean MPG difference between manual and automatic transmission is about 2mpg. However, the 95% confidence interval is (-0.736, 4.903) which contains 0. Therefore, we cannot accept the hypothesis that the mean MPG of manual transmission is better than that of automatic transmission.
+
+ 
+##Analysis
+
+###Exploratory Analysis
+
+#####Load the mtcars data set and view some instances.
+```{r echo = TRUE}
+data(mtcars)
+head(mtcars)
+str(mtcars)
+```
+
+Plot the MPG variable against types of transmissions (0 = auto, 1 = manual)
+```{r echo = TRUE}
+plot(mtcars$am, mtcars$mpg)
+```
+
+###Regression Study between MPG and Transmission Type
+From the plot of MPG-Transimssion Type, it seems that the MPGs are different for different types of transmissions. Let us do a first regression ignoring all the other variables. 
+```{r echo = TRUE}
+fit <- lm(mpg ~ factor(am), mtcars)
+summary(fit)$coef
+```
+
+####The interpretation of the coefficients
+
+The intercept is the mean MPG for automatic transmission (am = 0), while the coefficient is the increased mean MPG for manual transmission (am = 1).   
+
+From the regression which ignores all the other variables, it seems that the MPG of manual transmission is better the that of automatic transmission. However, we need to consider other correlated variables for further diagnosis.
+
+### Fit multiple models for model selection
+```{r echo = TRUE}
+fit1 <- update(fit, mpg ~ factor(am) + wt, mtcars)
+fit2 <- update(fit, mpg ~ factor(am) + wt + hp, mtcars)
+fit3 <- update(fit, mpg ~ factor(am) + wt + hp + disp, mtcars)
+```
+
+####ANOVA analysis
+```{r echo =TRUE}
+anova(fit, fit1, fit2, fit3)
+```
+
+The p values indicate that regressors 'wt' and 'hp' should be included in the model while 'disp' should be excluded. 
+
+### Can we answer the question of interest "Is an automatic or manual transmission better for MPG?" 
+Show the intercept and coefficients of the model including 'am', 'wt', and 'hp':
+```{r echo = TRUE}
+summary(fit2)$coef
+```
+
+The intercept and coefficients indicate that if we hold the 'wt' and 'hp' constant at the origin, the mpg for manual transmission is better than that of automatic transmission. In particular, the mean MPG of manual transmission is more than 2mpg compared to the mean MPG of automatic transmission, which is around 34mpg. The following quantifies the hypothesis.
+
+###Let us do a residual plot and quantiy the uncertainty of the difference between MPG of manual transmission and that of automatic transmission
+```{r echo = TRUE}
+plot(predict(fit2), resid(fit2))
+```
+
+Compute the 95% confidence interval for the increase of MPG for manual transmission:
+```{r echo = TRUE}
+sumCoef <- summary(fit2)$coef
+sumCoef[2,1] + c(-1, 1) * qt(.975, df = fit2$df) * sumCoef[2, 2]
+```
+
+###Oops, the 95% confidence interval contains 0. We cannot conclude with confidence that the MPG of manual transmission is better than automatic transimission. 
