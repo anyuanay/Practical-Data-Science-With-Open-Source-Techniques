@@ -18,6 +18,9 @@ https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
 
 This report describes the model, cross validation, and the expected out of sample error. Finally, the prediction model is used to predict 20 different test cases. 
 
+The entire document is published in rpubs.com at:
+
+http://rpubs.com/anyuanay/43416
 
 ## Data Processing
 

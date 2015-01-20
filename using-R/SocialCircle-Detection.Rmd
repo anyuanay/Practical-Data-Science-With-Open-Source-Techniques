@@ -8,6 +8,10 @@ output: pdf_document
 ## Synopsis
 This document describes several exploratory steps on analyzing the social network data for circle discovery. The problem is posted as a Kaggle competition for [learning social cirle in networks](https://www.kaggle.com/c/learning-social-circles/leaderboard). The original "features.txt" data file has been transformed into a CSV file called "features.csv" using a Java program - MakeCSVFromFeatures.java. The Github repository containing all the source code is located [here](https://github.com/anyuanay0511/SocialCircleAnalysis).
 
+The entire document is published in rpubs.com at:
+
+http://rpubs.com/anyuanay/28415
+
 ## Result Summary
 
 1. I began with the benchmark solutions provided by the competition and in the discussion forum. Both solutions are implemented in Python and I used them to generate the submissions. The first benchmark solution is to use the connected components in the graph of an ego's friend connections as circles. The submission result is 5553 point (the lower the better.)
