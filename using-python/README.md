@@ -8,3 +8,4 @@ Welcome to Practical Data Science Using Python Tools
 * [data-munging-in-pandas-1.ipynb](http://nbviewer.ipython.org/github/anyuanay/Practical-Data-Science-With-Open-Source-Techniques/blob/master/using-python/data-munging-in-pandas-1.ipynb): Data Munging
 * [CS109-Lab2-Web-Scrapping.ipynb](http://nbviewer.ipython.org/github/anyuanay/Practical-Data-Science-With-Open-Source-Techniques/blob/master/using-python/CS109-Lab2-Web-Scraping.ipynb): Web Scrapping
 * [CS109-Lab3-data-exploratory.ipynb](http://nbviewer.ipython.org/github/anyuanay/Practical-Data-Science-With-Open-Source-Techniques/blob/master/using-python/CS109-Lab3-data-exploratory.ipynb): Exploratory Data Analysis
+* [CS109-Lab4-scikit-learn.ipynb](http://nbviewer.ipython.org/github/anyuanay/Practical-Data-Science-With-Open-Source-Techniques/blob/master/using-python/CS109-Lab4-scikit-learn.ipynb)
