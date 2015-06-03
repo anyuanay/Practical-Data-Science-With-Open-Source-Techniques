@@ -1,5 +1,6 @@
 Welcome to Practical Data Science Using Python Tools
 =======
+This directory includes the ipython notebooks of the Harvard CS 109: Data Science course. These notebooks contain very useful information for data analysis using python, so included. Please refer to the site: [https://github.com/cs109](https://github.com/cs109) for original information. 
 
 ## View ipython notebooks
 
